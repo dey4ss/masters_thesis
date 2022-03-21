@@ -2,7 +2,7 @@
 [![Coverage Status](https://hyrise-coverage-badge.herokuapp.com/coverage_badge.svg)](https://hyrise-ci.epic-hpi.de/job/Hyrise/job/hyrise/job/master/lastStableBuild/Llvm-cov_5fReport/)
 [![CodeFactor](https://www.codefactor.io/repository/github/hyrise/hyrise/badge)](https://www.codefactor.io/repository/github/hyrise/hyrise)
 
-# Workload-driven discovery and utilization of data dependencies
+# Workload-Driven Query Optimization Using Data Dependencies
 
 The relevant binary targets are `hyriseBenchmarkJoinOrder`, `hyriseBenchmarkTPCDS`, `hyriseBenchmarkTPCH` for the benchmarks and `hyriseDependencyMiningPlugin` for the plugin. For general build instructions, consider the detailed instructions below. We adjusted the Hyrise BenchmarkRunner to load the plugin if its path is provided as a command line parameter, e.g., `./cmake-build-release/hyriseBenchmarkTPCDS -r 1 --dep_mining_plugin /home/ExampleUser/hyrise/cmake-build-release/lib/libhyriseDependencyMiningPlugin.so`
 

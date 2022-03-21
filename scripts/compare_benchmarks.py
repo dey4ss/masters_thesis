@@ -16,12 +16,15 @@ min_iterations_disabling_min_runtime = 100
 
 max_lost = 0
 max_gain = 0
+min_lost = -float('inf')
+min_gain = float('inf')
 num_lost = 0
 num_gain = 0
 
+num_overall = 0
+
 # threshold for latency gain/loss to be considered (>=)
 confidence_threshold = 5
-
 
 def format_diff(diff):
     diff -= 1  # adapt to show change in percent
@@ -176,8 +179,11 @@ table_data.append(["", "old", "new", "", "old", "new", "", ""])
 
 for old, new in zip(old_data["benchmarks"], new_data["benchmarks"]):
     name = old["name"]
+    if name == "95":
+        continue
     if old["name"] != new["name"]:
         name += " -> " + new["name"]
+    num_overall += 1
 
     # Create numpy arrays for old/new successful/unsuccessful runs from benchmark dictionary
     old_successful_durations = np.array([run["duration"] for run in old["successful_runs"]], dtype=np.float64)
@@ -199,8 +205,10 @@ for old, new in zip(old_data["benchmarks"], new_data["benchmarks"]):
         if abs(change) >= confidence_threshold:
             if change < 0:
                 num_lost += 1
+                min_lost = max(change, min_lost)
             elif change > 0:
                 num_gain += 1
+                min_gain = min(change, min_gain)
     else:
         diff_duration = float("nan")
 
@@ -209,6 +217,7 @@ for old, new in zip(old_data["benchmarks"], new_data["benchmarks"]):
         diffs_throughput.append(diff_throughput)
     else:
         diff_throughput = float("nan")
+
 
     # Format the diffs (add colors and percentage output) and calculate p-value
     diff_duration_formatted = color_diff(diff_duration, True)
@@ -388,8 +397,11 @@ print()
 print("loss --> latency now lower, gain --> latency now higher")
 print(f"baseline:    {round(total_runtime_old / 10**9, 1)}s")
 print(f"abs. change: {round((total_runtime_new - total_runtime_old) / 10**9, 1)}s")
-print(f"rel.change:  {round(((total_runtime_new / total_runtime_old) - 1) * 100)}%")
+print(f"rel. change: {round(((total_runtime_new / total_runtime_old) - 1) * 100)}%")
 print(f"max loss:  {max_lost}%")
+print(f"min loss:  {min_lost}%")
 print(f"max gain:  {max_gain}%")
+print(f"min gain:  {min_gain}%")
+print(f"# overall: {num_overall}")
 print(f"# losses >= {confidence_threshold}%:  {num_lost}")
 print(f"# gains >= {confidence_threshold}%:  {num_gain}")

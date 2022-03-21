@@ -63,7 +63,7 @@ def parse_args():
     ap.add_argument("dir", type=str, help="Path to directory containing benchmark result files")
     ap.add_argument("--output", "-o", type=str, help="Output directory", default="mining_comparison_plots")
     ap.add_argument("--extension", "-e", type=str, help="Plot file format", choices=["png", "pdf", "eps", "svg"], default="png")
-    ap.add_argument("--compare_benchmark_path", "-c", type=str, help="Path to compare_benchmarks.py", default="./compare_benchmarks.py")
+    ap.add_argument("--compare_benchmark_path", "-c", type=str, help="Path to compare_benchmarks.py", default="./repo_final/scripts/compare_benchmarks.py")
     return ap.parse_args()
 
 def indent(level, msg):
@@ -82,10 +82,7 @@ def main(directory, output, extension, compare_benchmark_path):
     configs = {"Join2Semi": "only_jts", "DGR": "only_dgr", "Join2Predicate": "only_join2pred", "JoinElimination": "only_join_elim", "All w/o JoinElimination": "dgr_jts_join2pred", "Combined": "all_on"}
     config_names = {v: k for k, v in configs.items()}
 
-    #print(sorted(style for style in plt.style.available if style != 'classic'))
-
     base_palette = Safe_6.hex_colors
-    print(plt.rcParams["figure.figsize"], [x * 1 for x  in plt.rcParams["figure.figsize"]])
 
     colors = sns.color_palette("colorblind")
     colors = sns.color_palette(cc.glasbey, n_colors=len(configs))
@@ -121,7 +118,7 @@ def main(directory, output, extension, compare_benchmark_path):
                 candidates_per_benchmark[benchmark].add(re.search(candidates_regex, f).group(0))
             else:
                 candidates_per_benchmark[benchmark].add("all")
-    scales_per_benchmark["JoinOrder"].add(10)
+    scales_per_benchmark["JoinOrder"].add(1)
 
     print("GATHER DATA")
     benchmark_stats = defaultdict(lambda: dict())
@@ -132,7 +129,7 @@ def main(directory, output, extension, compare_benchmark_path):
         for config in configurations:
             print(indent(1, f"{config} // {config_names[config]}"))
             for sf in scales_per_benchmark[benchmark]:
-                if sf != 10 and benchmark == "JoinOrder": continue
+                if sf != 1 and benchmark == "JoinOrder": continue
                 sf_key = int(sf) if sf != "001" else 0.01
                 #print(indent(2, f"SF {sf_key}"))
                 sf_indicator = f"_s-{sf}" if benchmark != "JoinOrder" else ""
@@ -195,13 +192,10 @@ def main(directory, output, extension, compare_benchmark_path):
                         benchmark_stats[benchmark][sf_key] = (num_overall, baseline)
                         benchmark_results[config][benchmark][sf_key][num_candidates] = BenchmarkResult(abs_change, rel_change, num_losses, num_gains, max_loss, max_gain)
 
-                    if sf_key == 10:
+                    if sf_key == 10 or sf_key == 1 and benchmark == "JoinOrder":
                         print(indent(2, benchmark_results[config][benchmark][sf_key][num_candidates]))
                         print(indent(2, mining_results[config][benchmark][sf_key][num_candidates]))
 
-    print("")
-    for benchmark in benchmarks:
-        print(benchmark, benchmark_stats[benchmark][10])
 
 
     print("")
@@ -212,18 +206,7 @@ def main(directory, output, extension, compare_benchmark_path):
         os.makedirs(output)
     sns.set()
     sns.set_theme(style="whitegrid")
-    #sns.color_palette("viridis")
-    #rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-    #rc('font',**{'family':'serif','serif':['Times']})
-    #rc('text', usetex=True)
     plt.rcParams["font.family"] = "serif"
-    #axes.titlesize : 24
-    # plt.rcParams["axes.labelsize"] = 16
-    #axes.labelsize : 20
-    #lines.linewidth : 3
-    #lines.markersize : 10
-    #xtick.labelsize : 16
-    #ytick.labelsize : 16
     plt.style.use('seaborn-colorblind')
     plt.rcParams["figure.figsize"] = [x * 1 for x  in plt.rcParams["figure.figsize"]]
 
@@ -248,6 +231,8 @@ def main(directory, output, extension, compare_benchmark_path):
 
         do_scales = len(scales_per_benchmark[benchmark]) > 1
         do_candidates = len(candidates_per_benchmark[benchmark]) > 1
+        if benchmark == "JoinOrder" and not any([do_scales, do_candidates]):
+            do_scales = True
 
         if do_scales:
             print(indent(1, "Discovery Time vs. Latency Change: Scale factors"))
@@ -300,9 +285,6 @@ def main(directory, output, extension, compare_benchmark_path):
                 all_conf += [config_name for _ in range(len(x))]
                 all_bench += [benchmark_short[benchmark] for _ in range(len(x))]
                 all_metric += [metric for _ in range(len(x))]
-                #print(len(x), x)
-                #print(len(ind), ind)
-                #print(len(vals), vals)
                 if not any([do_scales, do_candidates]):
                     continue
                 my_data = pd.DataFrame(data={"x": x, "Measurement": ind, "val": vals})
@@ -328,18 +310,6 @@ def main(directory, output, extension, compare_benchmark_path):
                 plt.savefig(os.path.join(output, f"{benchmark}_{file_indicator}_{config}_{metric}.{extension}"), dpi=300, bbox_inches="tight")
                 plt.close()
 
-        '''
-        for a, i in zip([all_x, all_y, all_ind, all_bench, all_conf, all_metric], ["x", "y", "ind", "bench", "conf", "metric"]):
-            print(f"\n{i}")
-            if type(a) in [defaultdict, dict]:
-                for x, y in a.items():
-                    print(indent(1, f"{x} {len(y)}"))
-                    print(indent(2, y))
-            else:
-                print(indent(1, len(a)))
-                #print(indent(2, a))
-        '''
-
         if not do_scales: continue
         # all together
         print(indent(2, "Configs Merged"))
@@ -347,18 +317,13 @@ def main(directory, output, extension, compare_benchmark_path):
             my_data = pd.DataFrame(data={"x": all_x, "Configuration": all_conf, "Measurement": all_ind, "Benchmark": all_bench, "val": all_y, "metric": all_metric})
             my_data = my_data[my_data.Benchmark.eq(benchmark)]
             my_data = my_data[my_data.metric.eq(metric)]
-            #markers = list()
-            #for config in configs_per_benchmark[benchmark]:
-            #    markers += [markers_per_config[config] for _ in range(2)]
             my_dashes = ["", (2, 2)] * len(configs_per_benchmark[benchmark])
-            #sns.lineplot(x=x_values, y=mining_times, label="Discovery Time", marker=markers_per_config[config], color=colors_per_config[config])
             my_markers = list()
             for config in configs_per_benchmark[benchmark]:
                 my_markers += [markers_per_config[config] for _ in range(2)]
             palette = {config_names[k]: v for k, v in colors_per_config.items()}
 
             sns.lineplot(data=my_data, x="x", y="val", hue="Configuration", style="Measurement", dashes=dashes, markers=markers[:2], palette=palette, linewidth=2, markersize=9)
-            #sns.lineplot(x=x_values, y=benchmark_gains, label="Latency Improvement", marker=markers_per_config[config], color=sns.desaturate(colors_per_config[config], 0.7), dashes=[(2,2)])
             plt.xlabel("Scale Factor" if do_scales else "Candidates", fontsize=16)
             y_label = "Share of Benchmark Run-time [%]" if metric == "relative" else "Run-time [s]"
             plt.ylabel(y_label, fontsize=16)
@@ -373,7 +338,6 @@ def main(directory, output, extension, compare_benchmark_path):
             ax.tick_params(axis='both', which='minor', labelsize=14)
             plt.tight_layout(pad=0)
             file_indicator = "scales" if do_scales else "candidates"
-            # print(os.path.join(output, f"{benchmark}_{file_indicator}_merged_{metric}.{extension}"))
             plt.savefig(os.path.join(output, f"{benchmark}_{file_indicator}_merged_{metric}.{extension}"), dpi=300, bbox_inches="tight")
             plt.close()
 
@@ -386,45 +350,8 @@ def main(directory, output, extension, compare_benchmark_path):
 
         palette = {b: c for b, c in zip([benchmark_short[b] for b in benchmarks], palette)}
         if do_candidates:
-            # all together
-
-            #markers = list()
-            #for config in configs_per_benchmark[benchmark]:
-            #    markers += [markers_per_config[config] for _ in range(2)]
-            # dashes = ["", (2, 2)] * len(configs_per_benchmark[benchmark])
-            #sns.lineplot(x=x_values, y=mining_times, label="Discovery Time", marker=markers_per_config[config], color=colors_per_config[config])
-
-
-            # palette = {config_names[k]: v for k, v in colors_per_config.items()}
-            #dashes = ["", (2, 2)] * 3
-
-            #my_colors = list()
-            #from matplotlib import colors as cs
-            #for color in palette:
-            #    my_colors.append(color)
-            #    color_hsl = cs.rgb_to_hsv(color)
-            #    saturation = color_hsl[1]
-            #    target_color = cs.hsv_to_rgb((color_hsl[0], saturation * 0.5, color_hsl[2]))
-            #    #my_colors.append(target_color)
-            #    my_colors.append(sns.desaturate(color, 0.5))
-            #    print(color, target_color)
-            #my_markers = list()
-            #for i in range(len(benchmarks)):
-            #    my_markers += [markers[i] for _ in range(2)]
-
-            #hues = list()
-            #i = 0
-            #for benchmark in benchmarks:
-            #    num_val = len(my_data[my_data.Benchmark.eq(benchmark)]) / 2
-            #    print(num_val)
-            #    hues += [i for _ in range(int(num_val))]
-            #    i += 1
-            #    hues += [i for _ in range(int(num_val))]
-            #    i += 1
-
             print("Benchmark Candidates Merged", metric)
             sns.lineplot(data=combined_data, x="x", y="val", style="Measurement", markers=markers[:2], hue="Benchmark", dashes=dashes, palette=palette, linewidth=2, markersize=9)
-            #sns.lineplot(x=x_values, y=benchmark_gains, label="Latency Improvement", marker=markers_per_config[config], color=sns.desaturate(colors_per_config[config], 0.7), dashes=[(2,2)])
             plt.xlabel("Scale Factor" if do_scales else "Candidates", fontsize=16)
             y_label = "Share of Benchmark Run-time [%]" if metric == "relative" else "Run-time [s]"
             plt.ylabel(y_label, fontsize=16)
@@ -439,14 +366,12 @@ def main(directory, output, extension, compare_benchmark_path):
             ax.tick_params(axis='both', which='minor', labelsize=14)
             plt.tight_layout(pad=0)
             file_indicator = "scales" if do_scales else "candidates"
-            # print(os.path.join(output, f"{benchmark}_{file_indicator}_merged_{metric}.{extension}"))
             plt.savefig(os.path.join(output, f"all_{file_indicator}_merged_{metric}.{extension}"), dpi=300, bbox_inches="tight")
             plt.close()
 
         if got_scales:
             print("Benchmark Scales merged per Config", metric)
             my_configs = combined_data.Configuration.unique()
-            # print(configs)
 
             for config in my_configs:
                 print(indent(1, config))
@@ -455,8 +380,6 @@ def main(directory, output, extension, compare_benchmark_path):
                 plt.xlabel("Scale Factor" if do_scales else "Candidates", fontsize=16)
                 y_label = "Share of Benchmark Run-time [%]" if metric == "relative" else "Run-time [s]"
                 plt.ylabel(y_label, fontsize=16)
-                title = "Discovery Time vs. Latency Improvement"
-                # plt.title(f"{title} {config}")
                 min_y = my_data.min().val
                 if min_y >= 0:
                     plt.axis(ymin=0)
@@ -467,31 +390,8 @@ def main(directory, output, extension, compare_benchmark_path):
                 if metric == "relative":
                     ax.get_legend().remove()
                 plt.tight_layout(pad=0)
-                # print(os.path.join(output, f"{configs[config]}_benchmarks_merged_{metric}.{extension}"))
                 plt.savefig(os.path.join(output, f"{configs[config]}_benchmarks_merged_{metric}.{extension}"), dpi=300, bbox_inches="tight")
                 plt.close()
-
-
-
-
-    '''
-    print("Baseline", end=" ")
-    for benchmark in benchmarks:
-        print(f"& \\numprint[s]{{{benchmark_stats[benchmark][1]}}}", end=" ")
-        print("& -- " * 6, end=" ")
-    print(" \\\\")
-
-    for c in configs.keys():
-        print(f"{c}", end=" ")
-        for benchmark, benchmark_res in benchmark_results[c].items():
-            # print("-----", benchmark, benchmark_res)
-            print(f"& {'-' if benchmark_res.abs_change < 0 else ''}\\numprint[s]{{{abs(benchmark_res.abs_change)}}}", end=" ")
-            print(f"& {'-' if benchmark_res.abs_change < 0 else ''}\\numprint[\\%]{{{abs(benchmark_res.rel_change)}}}", end=" ")
-            print(f"& {benchmark_res.num_losses} & {benchmark_res.num_gains}", end=" ")
-            mining_res = mining_results[c][benchmark]
-            print(f"& {mining_res.num_candidates} & {mining_res.num_valid} & \\numprint[ms]{{{mining_res.time}}}", end=" ")
-        print(" \\\\")
-    '''
 
 
 if __name__ == "__main__":

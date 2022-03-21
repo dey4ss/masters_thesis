@@ -177,9 +177,22 @@ def main():
         for impl, color, offset in zip(dirs, Safe_6.hex_colors[:len(dirs)], offsets):
             bar_positions = [p + offset * (bar_width + margin) for p in group_centers]
             vals = [max(sum(data[b]["invalid"][impl]) / 10**6, min_val) for b in bens]
+            v_s = [sum(data[b]["invalid"][impl]) / 10**6 for b in bens]
             ax.bar(bar_positions, vals, bar_width, color=color, label=to_legend_entry(impl))
+            for v, x, y in zip(v_s, bar_positions, vals):
+                if break_axis and v <= remaining_limit:
+                        continue
+                v_round = round(v) if v >= 10 else round(v, 2)
+                if v > 10 and v < 200:
+                    v_round = round(v, 1)
+                ax.text(x, y, '{:,}'.format(v_round).replace(',', u"\u2009"),  ha='center', va='bottom', size="small")
             if break_axis:
                 ax2.bar(bar_positions, vals, bar_width, color=color)
+                for v, x, y in zip(v_s, bar_positions, vals):
+                    if v > remaining_limit:
+                        continue
+                    v_round = round(v) if v >= 10 else round(v, 2)
+                    ax2.text(x, y, '{:,}'.format(v_round).replace(',', u"\u2009"),  ha='center', va='bottom', size="small")
 
             validation_times = list()
             for b in bens:
@@ -223,6 +236,8 @@ def main():
 
             ax2.tick_params(axis='both', which='major', labelsize=14)
             ax2.tick_params(axis='both', which='minor', labelsize=14)
+
+            ax.get_yaxis().set_major_locator(plt.FixedLocator([116.5, 117.0]))
 
         plt.xticks(group_centers, bens, rotation=0)
         ax.tick_params(axis='both', which='major', labelsize=14)
